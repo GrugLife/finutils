@@ -1,0 +1,6 @@
+[
+  "tests/test_tvm.py::test_future_value_lump_sum",
+  "tests/test_tvm.py::test_payment_standard_loan",
+  "tests/test_tvm.py::test_present_value_lump_sum",
+  "tests/test_tvm.py::test_rate_simple_case"
+]

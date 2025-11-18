@@ -1,6 +1,6 @@
 import math
 
-from finutils.tvm import present_value, future_value, payment, rate
+from finutils import present_value, future_value, payment, rate
 
 
 def test_present_value_lump_sum():

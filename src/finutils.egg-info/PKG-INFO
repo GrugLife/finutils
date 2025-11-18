@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: finutils
+Version: 0.1.0
+Summary: A small library of time value of money and other financial utilities.
+Author: grug_life
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"

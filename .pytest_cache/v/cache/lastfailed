@@ -1,0 +1,3 @@
+{
+  "tests/test_tvm.py::test_rate_simple_case": true
+}
