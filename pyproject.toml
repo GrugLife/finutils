@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build.meta"
+
+[project]
+name = "finutils"
+version = "0.1.0"
+description = "A small library of time value of money and other financial utilities."
+authors = [
+    {name = "grug_life"}
+]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
