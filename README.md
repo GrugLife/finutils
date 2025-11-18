@@ -1,0 +1,43 @@
+# finutils
+
+A small, extensible Python library for **finance utilities**, starting with fully Excel-compatible **time value of money (TVM)** functions.
+
+Built to support:
+- Technical finance / FP&A workflows  
+- Teaching and learning financial modeling in Python  
+- Your broader “Technical CFO” toolkit (forecasting, valuation, optimization, etc.)
+
+---
+
+## 🚀 Features
+
+Current focus: **Time Value of Money (TVM)**
+
+- `present_value()` — Excel-style `PV`
+- `future_value()` — Excel-style `FV`
+- `payment()` — Excel-style `PMT`
+- `rate()` — Excel-style `RATE` (numerical solver)
+
+All functions:
+
+- Use standard finance sign conventions (cash out = negative, cash in = positive)
+- Are designed to match Excel behavior as closely as possible
+- Support **ordinary annuities** and **annuities due** via a `when` parameter (`0` or `1`)
+
+---
+
+## 📦 Installation
+
+From your local clone (recommended for development):
+
+```bash
+git clone <git@github.com:GrugLife/finutils.git>.git
+cd finutils
+
+# create & activate a virtual environment
+python3 -m venv venv
+source venv/bin/activate      # macOS / Linux
+# venv\Scripts\activate       # Windows
+
+# install in editable mode with dev dependencies
+pip install -e ".[dev]"
