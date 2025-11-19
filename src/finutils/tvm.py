@@ -263,36 +263,42 @@ def rate(
 
 
 def net_present_value(
-    initial_investment: float,
-    cashflows: list[float],
     rate: float,
-    n_periods: int, 
+    cashflows: list[float],
+    initial_investment: float = 0.0,
 ) -> float:
     """
-    Compute the net present value of a series of cash flows.
+    Compute NPV consistent with Excel's conventions.
 
-    Mirrors Excel's: NPV(rate, cash)
+    NOTE:
+    Excel's NPV(rate, values) discounts values as if the 
+    FIRST value occurs at period 1, not period 0.
+    Therefore, initial_investment must be added separately.
 
     Parameters
     ----------
-    initial_investment : float
-        The initial investment or the cash outflow at time 0
-    cashflows : list
-        The cash flow at time period t
     rate : float
-        The discount rate per period as a decimal
-    n_periods : int
-        Number of periods
+        Discount rate per period (as decimal, e.g., 0.08 for 8%)
+    cashflows : list of float
+        Cash flows for periods 1..N
+    initial_investment : float, default 0.0
+        Cash flow at time 0 (usually a positive investment cost)
 
     Returns
     -------
     float
-        The net present value of the cash flows.
+        NPV following Excel behavior.
     """
 
-    for n, cash in enumerate(cashflows):
-        cashflows[n] = cash / (1 + rate) ** (n + 1)
+    # Handle zero discount rate
+    if rate == 0:
+        return round(-initial_investment + sum(cashflows), 2)
 
-    cashflows.insert(0, -initial_investment)
+    # Discount each cashflow
+    discounted = [
+        cf / (1 + rate) ** (t + 1) 
+        for t, cf in enumerate(cashflows)
+    ]
 
-    return round(sum(cashflows), 2)
+    npv = -initial_investment + sum(discounted)
+    return round(npv, 2)
