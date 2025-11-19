@@ -2,10 +2,12 @@
 tvm.py — Time Value of Money utilities (Excel-compatible)
 
 Implements:
-- present_value  -> PV
-- future_value   -> FV
-- payment        -> PMT
-- rate           -> RATE
+- present_value         -> PV
+- future_value          -> FV
+- payment               -> PMT
+- rate                  -> RATE
+ - net present value    -> NPV
+
 """
 
 from __future__ import annotations
@@ -258,3 +260,39 @@ def rate(
         r -= y / dy
 
     raise ValueError("Failed to converge to a solution for rate.")
+
+
+def net_present_value(
+    initial_investment: float,
+    cashflows: list[float],
+    rate: float,
+    n_periods: int, 
+) -> float:
+    """
+    Compute the net present value of a series of cash flows.
+
+    Mirrors Excel's: NPV(rate, cash)
+
+    Parameters
+    ----------
+    initial_investment : float
+        The initial investment or the cash outflow at time 0
+    cashflows : list
+        The cash flow at time period t
+    rate : float
+        The discount rate per period as a decimal
+    n_periods : int
+        Number of periods
+
+    Returns
+    -------
+    float
+        The net present value of the cash flows.
+    """
+
+    for n, cash in enumerate(cashflows):
+        cashflows[n] = cash / (1 + rate) ** (n + 1)
+
+    cashflows.insert(0, -initial_investment)
+
+    return round(sum(cashflows), 2)
