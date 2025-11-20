@@ -1,7 +1,7 @@
 import math
 from datetime import date
 
-from finutils import present_value, future_value, payment, rate, net_present_value, npv, irr, xnpv, xirr
+from finutils import present_value, future_value, payment, rate, npv, npv, irr, xnpv, xirr
 
 
 def test_present_value_lump_sum():
@@ -30,11 +30,11 @@ def test_rate_simple_case():
 
 def test_npv_simple():
     # Excel: =NPV(0.10, 300,400,500) - 1000 = -37.22
-    assert net_present_value(0.10, [300,400,500], 1000) == -37.22
+    assert npv(0.10, [300,400,500], 1000) == -37.22
 
 
 def test_npv_zero_rate():
-    assert net_present_value(0.0, [100,100,100], 250) == 50.00
+    assert npv(0.0, [100,100,100], 250) == 50.00
 
 
 def test_npv_simple():
