@@ -1,27 +1,38 @@
 """
-tvm.py — Time Value of Money utilities (Excel-compatible)
+tvm.py — Time Value of Money & Cashflow Utilities (Excel-ish)
 
 Implements:
-- present_value         -> PV
-- future_value          -> FV
-- payment               -> PMT
-- rate                  -> RATE
- - net present value    -> NPV
-
+- present_value  -> PV
+- future_value   -> FV
+- payment        -> PMT
+- rate           -> RATE
+- npv            -> NPV (standard, includes CF0)
+- xnpv           -> XNPV (date-based)
+- irr            -> IRR
+- xirr           -> XIRR (date-based)
 """
 
 from __future__ import annotations
 
-from typing import Literal
+from datetime import date
+from typing import Literal, Sequence
 
 
 When = Literal[0, 1]
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
 def _validate_when(when: int) -> None:
     if when not in (0, 1):
         raise ValueError("`when` must be 0 (end of period) or 1 (beginning of period).")
 
+
+# ---------------------------------------------------------------------------
+# Classic TVM functions: PV, FV, PMT, RATE
+# ---------------------------------------------------------------------------
 
 def present_value(
     rate: float,
@@ -34,27 +45,6 @@ def present_value(
     Compute the present value of a series of cash flows or lump sum.
 
     Mirrors Excel's: PV(rate, nper, pmt, fv, type)
-
-    Parameters
-    ----------
-    rate : float
-        Discount rate per period as a decimal (e.g., 0.05 for 5%).
-    n_periods : int
-        Number of periods.
-    payment : float, default 0.0
-        Payment made each period (PMT). Use negative for outflows,
-        positive for inflows.
-    future_value : float, default 0.0
-        Future lump sum (FV).
-    when : {0, 1}, default 0
-        0 = end of period (ordinary annuity)
-        1 = beginning of period (annuity due)
-
-    Returns
-    -------
-    float
-        Present value (PV). By convention, will usually be the opposite sign
-        of payment / future_value.
     """
     _validate_when(when)
 
@@ -62,10 +52,8 @@ def present_value(
         raise ValueError("n_periods must be non-negative.")
 
     if rate == 0:
-        # PV is just the negative sum of all cash flows
         return round(-(payment * n_periods + future_value), 2)
 
-    # PV factor for an annuity
     pv_factor = (1 - (1 + rate) ** (-n_periods)) / rate
 
     pv = -(
@@ -87,25 +75,6 @@ def future_value(
     Compute the future value of a series of cash flows or lump sum.
 
     Mirrors Excel's: FV(rate, nper, pmt, pv, type)
-
-    Parameters
-    ----------
-    rate : float
-        Interest rate per period as a decimal (e.g., 0.05 for 5%).
-    n_periods : int
-        Number of periods.
-    payment : float, default 0.0
-        Payment made each period (PMT). Negative for deposits, positive for withdrawals.
-    present_value : float, default 0.0
-        Present value (PV). Negative for an amount you invest today.
-    when : {0, 1}, default 0
-        0 = end of period (ordinary annuity)
-        1 = beginning of period (annuity due)
-
-    Returns
-    -------
-    float
-        Future value (FV).
     """
     _validate_when(when)
 
@@ -113,10 +82,8 @@ def future_value(
         raise ValueError("n_periods must be non-negative.")
 
     if rate == 0:
-        # FV is just negative of total cashflow sum
         return round(-(present_value + payment * n_periods), 2)
 
-    # FV factor for an annuity
     fv_factor = ((1 + rate) ** n_periods - 1) / rate
 
     fv = -(
@@ -138,26 +105,6 @@ def payment(
     Compute the constant payment per period.
 
     Mirrors Excel's: PMT(rate, nper, pv, fv, type)
-
-    Parameters
-    ----------
-    rate : float
-        Interest rate per period as a decimal.
-    n_periods : int
-        Number of periods.
-    present_value : float, default 0.0
-        Present value (PV). Positive if you receive money today.
-    future_value : float, default 0.0
-        Future value (FV). Positive if you want to have that amount at the end.
-    when : {0, 1}, default 0
-        0 = end of period (ordinary annuity)
-        1 = beginning of period (annuity due)
-
-    Returns
-    -------
-    float
-        Payment per period (PMT). Usually negative if PV is positive
-        (e.g., loan repayment).
     """
     _validate_when(when)
 
@@ -165,7 +112,6 @@ def payment(
         raise ValueError("n_periods must be positive.")
 
     if rate == 0:
-        # Simple straight-line repayment
         return round(-(present_value + future_value) / n_periods, 2)
 
     r1 = 1 + rate
@@ -193,37 +139,6 @@ def rate(
     Solve for the interest rate per period that satisfies the TVM equation.
 
     Roughly mirrors Excel's: RATE(nper, pmt, pv, fv, type, guess)
-
-    Uses a simple Newton-Raphson method with a finite-difference derivative.
-
-    Parameters
-    ----------
-    n_periods : int
-        Number of periods (nper).
-    payment : float, default 0.0
-        Payment made each period (PMT).
-    present_value : float, default 0.0
-        Present value (PV).
-    future_value : float, default 0.0
-        Future value (FV).
-    when : {0, 1}, default 0
-        0 = end of period, 1 = beginning of period.
-    guess : float, default 0.1
-        Initial guess for the rate (as a decimal).
-    tol : float, default 1e-7
-        Convergence tolerance for the solution.
-    max_iter : int, default 100
-        Maximum number of iterations.
-
-    Returns
-    -------
-    float
-        Solved interest rate per period as a decimal.
-
-    Raises
-    ------
-    ValueError
-        If it fails to converge.
     """
     _validate_when(when)
 
@@ -231,8 +146,6 @@ def rate(
         raise ValueError("n_periods must be positive.")
 
     def f(r: float) -> float:
-        # TVM equation set to zero:
-        # pv*(1+r)^n + pmt*(1+r*when)*((1+r)^n - 1)/r + fv = 0
         if r == 0:
             return present_value + payment * n_periods + future_value
 
@@ -250,7 +163,6 @@ def rate(
         if abs(y) < tol:
             return r
 
-        # Finite difference derivative
         h = 1e-6
         y_h = f(r + h)
         dy = (y_h - y) / h
@@ -262,43 +174,109 @@ def rate(
     raise ValueError("Failed to converge to a solution for rate.")
 
 
-def net_present_value(
-    rate: float,
-    cashflows: list[float],
-    initial_investment: float = 0.0,
+# ---------------------------------------------------------------------------
+# Cashflow-based functions: NPV, XNPV, IRR, XIRR
+# ---------------------------------------------------------------------------
+
+def npv(rate: float, cashflows: Sequence[float]) -> float:
+    """
+    Net Present Value of a series of cash flows including time 0.
+
+    NPV(rate, [CF0, CF1, ..., CFn]) = Σ CF_t / (1 + rate)^t, t = 0..n
+    """
+    if rate == -1:
+        raise ValueError("rate = -1 would cause division by zero")
+
+    return sum(cf / (1 + rate) ** t for t, cf in enumerate(cashflows))
+
+
+def xnpv(rate: float, cashflows: Sequence[float], dates: Sequence[date]) -> float:
+    """
+    Date-based NPV (Excel-style XNPV).
+
+    Discounts each cash flow based on its exact day difference
+    from the first cash flow.
+    """
+    if len(cashflows) != len(dates):
+        raise ValueError("cashflows and dates must have the same length")
+
+    if len(cashflows) == 0:
+        return 0.0
+
+    t0 = dates[0]
+
+    return sum(
+        cf / (1 + rate) ** ((d - t0).days / 365.0)
+        for cf, d in zip(cashflows, dates)
+    )
+
+
+def irr(
+    cashflows: Sequence[float],
+    guess: float = 0.1,
+    tol: float = 1e-7,
+    max_iter: int = 100,
 ) -> float:
     """
-    Compute NPV consistent with Excel's conventions.
+    Internal Rate of Return (IRR) for a series of cash flows.
 
-    NOTE:
-    Excel's NPV(rate, values) discounts values as if the 
-    FIRST value occurs at period 1, not period 0.
-    Therefore, initial_investment must be added separately.
-
-    Parameters
-    ----------
-    rate : float
-        Discount rate per period (as decimal, e.g., 0.08 for 8%)
-    cashflows : list of float
-        Cash flows for periods 1..N
-    initial_investment : float, default 0.0
-        Cash flow at time 0 (usually a positive investment cost)
-
-    Returns
-    -------
-    float
-        NPV following Excel behavior.
+    Solves for r such that:
+        0 = Σ CF_t / (1 + r)^t,  t = 0..n
     """
+    def f(r: float) -> float:
+        return npv(r, cashflows)
 
-    # Handle zero discount rate
-    if rate == 0:
-        return round(-initial_investment + sum(cashflows), 2)
+    r = guess
+    for _ in range(max_iter):
+        y = f(r)
+        if abs(y) < tol:
+            return r
 
-    # Discount each cashflow
-    discounted = [
-        cf / (1 + rate) ** (t + 1) 
-        for t, cf in enumerate(cashflows)
-    ]
+        h = 1e-6
+        y_h = f(r + h)
+        dy = (y_h - y) / h
+        if dy == 0:
+            break
 
-    npv = -initial_investment + sum(discounted)
-    return round(npv, 2)
+        r -= y / dy
+
+    raise ValueError("IRR did not converge")
+
+
+def xirr(
+    cashflows: Sequence[float],
+    dates: Sequence[date],
+    guess: float = 0.1,
+    tol: float = 1e-7,
+    max_iter: int = 100,
+) -> float:
+    """
+    Date-based IRR (Excel-style XIRR).
+
+    Solves for r such that:
+        0 = Σ CF_i / (1 + r)^((t_i - t0)/365)
+    """
+    if len(cashflows) != len(dates):
+        raise ValueError("cashflows and dates must have the same length")
+
+    if len(cashflows) == 0:
+        raise ValueError("cashflows must not be empty")
+
+    def f(r: float) -> float:
+        return xnpv(r, cashflows, dates)
+
+    r = guess
+    for _ in range(max_iter):
+        y = f(r)
+        if abs(y) < tol:
+            return r
+
+        h = 1e-6
+        y_h = f(r + h)
+        dy = (y_h - y) / h
+        if dy == 0:
+            break
+
+        r -= y / dy
+
+    raise ValueError("XIRR did not converge")
